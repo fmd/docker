@@ -75,6 +75,8 @@ func (b *buildFile) CmdFrom(name string) error {
 	}
 	b.image = image.ID
 	b.config = &Config{}
+	b.config.Env = append(b.config.Env,EnvVar{"HOME","/"})
+	b.config.Env = append(b.config.Env,EnvVar{"PATH","/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"})
 	return nil
 }
 
@@ -126,15 +128,16 @@ func (b *buildFile) CmdEnv(args string) error {
 		return fmt.Errorf("Invalid ENV format")
 	}
 	key := strings.Trim(tmp[0], " \t")
-	value := strings.Trim(tmp[1], " \t")
+	value := strings.Trim(tmp[1], " \t")	
 
-	for i, elem := range b.config.Env {
-		if strings.HasPrefix(elem, key+"=") {
-			b.config.Env[i] = key + "=" + value
-			return nil
-		}
+	
+
+	if _, exists := b.config.Env[key] {
+		b.config.Env[key] = value
+		return nil
 	}
-	b.config.Env = append(b.config.Env, key+"="+value)
+
+	b.config.Env = append(b.config.Env, EnvVar{key,value})
 	return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s=%s", key, value))
 }
 

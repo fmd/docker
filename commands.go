@@ -1195,6 +1195,13 @@ func (opts AttachOpts) Get(val string) bool {
 	return false
 }
 
+// EnvOpts stores a unique set of environment vars
+type EnvOpts map[string]string
+
+func NewEnvOpts() EnvOpts {
+	return make(EnvOpts)
+}
+
 // PathOpts stores a unique set of absolute paths
 type PathOpts map[string]struct{}
 

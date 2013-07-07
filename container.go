@@ -70,7 +70,7 @@ type Config struct {
 	Tty          bool // Attach standard streams to a tty, including stdin if it is not closed.
 	OpenStdin    bool // Open stdin
 	StdinOnce    bool // If true, close stdin after the 1 attached client disconnects.
-	Env          []string
+	Env          map[string]string
 	Cmd          []string
 	Dns          []string
 	Image        string // Name of the image as it was passed by the operator (eg. could be symbolic)
@@ -178,7 +178,7 @@ func ParseRun(args []string, capabilities *Capabilities) (*Config, *HostConfig, 
 		AttachStdin:  flAttach.Get("stdin"),
 		AttachStdout: flAttach.Get("stdout"),
 		AttachStderr: flAttach.Get("stderr"),
-		Env:          flEnv,
+		Env:          NewEnvOpts(),
 		Cmd:          runCmd,
 		Dns:          flDns,
 		Image:        image,
@@ -601,8 +601,8 @@ func (container *Container) Start(hostConfig *HostConfig) error {
 		"-e", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 	)
 
-	for _, elem := range container.Config.Env {
-		params = append(params, "-e", elem)
+	for key, elem := range container.Config.Env {
+		params = append(params, "-e", fmt.Sprintf("%s=%s",key,elem))
 	}
 
 	// Program
