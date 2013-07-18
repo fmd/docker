@@ -68,9 +68,7 @@ func (b *buildFile) CmdFrom(name string) error {
 	b.image = image.ID
 	b.config = &Config{}
 	if b.config.Env == nil || len(b.config.Env) == 0 {
-		b.config.Env = make(map[string]string)
-		b.config.Env["HOME"] = "/"
-		b.config.Env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+		b.config.Env = append(b.config.Env, "HOME=/", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
 	}
 	return nil
 }
@@ -117,6 +115,16 @@ func (b *buildFile) CmdRun(args string) error {
 	return nil
 }
 
+func (b *buildFile) FindEnvKey(key string) int {
+	for k, envVar := range b.config.Env {
+		envParts := strings.SplitN(envVar, "=", 2)
+		if key == envParts[0] {
+			return k
+		}
+	}
+	return -1
+}
+
 func (b *buildFile) ReplaceEnvMatches(value string) (string, error) {
 	exp, err := regexp.Compile("(\\\\\\\\+|[^\\\\]|\\b|\\A)\\$({?)([[:alnum:]_]+)(}?)")
 	if err != nil {
@@ -126,10 +134,16 @@ func (b *buildFile) ReplaceEnvMatches(value string) (string, error) {
 	for _, match := range matches {
 		match = match[strings.Index(match, "$"):]
 		matchKey := strings.Trim(match, "${}")
-		matchValue, matchExists := b.config.Env[matchKey]
 
-		if matchExists {
-			value = strings.Replace(value, match, matchValue, -1)
+		for _, envVar := range b.config.Env {
+			envParts := strings.SplitN(envVar, "=", 2)
+			envKey := envParts[0]
+			envValue := envParts[1]
+
+			if envKey == matchKey {
+				value = strings.Replace(value, match, envValue, -1)
+				break
+			}
 		}
 	}
 	return value, nil
@@ -143,20 +157,19 @@ func (b *buildFile) CmdEnv(args string) error {
 	key := strings.Trim(tmp[0], " \t")
 	value := strings.Trim(tmp[1], " \t")
 
-	_, keyExists := b.config.Env[key]
+	envKey := b.FindEnvKey(key)
 	replacedValue, err := b.ReplaceEnvMatches(value)
 	if err != nil {
 		return err
 	}
-	if replacedValue != value {
-		value = replacedValue
-	}
-	b.config.Env[key] = value
-	if keyExists {
+	replacedVar := fmt.Sprintf("%s=%s", key, replacedValue)
+
+	if envKey >= 0 {
+		b.config.Env[envKey] = replacedVar
 		return nil
 	}
-
-	return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s=%s", key, value))
+	b.config.Env = append(b.config.Env, replacedVar)
+	return b.commit("", b.config.Cmd, fmt.Sprintf("ENV %s", replacedVar))
 }
 
 func (b *buildFile) CmdCmd(args string) error {

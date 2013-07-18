@@ -199,8 +199,14 @@ func TestBuildEnv(t *testing.T) {
         env port 4243
         `,
 		nil}, t)
-
-	if img.Config.Env[0] != "port=4243" {
+	hasEnv := false
+	for _, envVar := range img.Config.Env {
+		if envVar == "port=4243" {
+			hasEnv = true
+			break
+		}
+	}
+	if !hasEnv {
 		t.Fail()
 	}
 }
